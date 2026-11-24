@@ -6,6 +6,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: './',
     plugins: [
       react(),
       tailwindcss(),
@@ -28,7 +29,7 @@ export default defineConfig(() => {
         },
       },
       // Bundles compiled CSS and JS directly into dist/index.html so it can be
-      // embedded as a single self-contained HTML file (e.g., Google Sites).
+      // embedded as a single self-contained HTML file (Google Sites, GitHub Pages, local file).
       {
         name: 'inline-singlefile-html',
         apply: 'build',
@@ -44,11 +45,11 @@ export default defineConfig(() => {
 
           let html = fs.readFileSync(indexHtmlPath, 'utf-8');
 
-          // Inline all compiled stylesheets
+          // Inline all compiled stylesheets in <head>
           html = html.replace(
             /<link\b[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
             (fullTag, href: string) => {
-              const relPath = href.replace(/^\/+/, '');
+              const relPath = href.replace(/^\.?\//, '');
               const cssPath = path.join(distDir, relPath);
               if (!fs.existsSync(cssPath)) return fullTag;
               const cssContent = fs.readFileSync(cssPath, 'utf-8');
@@ -57,20 +58,27 @@ export default defineConfig(() => {
             }
           );
 
-          // Inline all compiled module scripts
+          // Extract compiled module scripts and place them right before </body>
+          // after <div id="root"></div> is parsed.
+          const inlinedScripts: string[] = [];
           html = html.replace(
             /<script\b[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*><\/script>/gi,
             (fullTag, src: string) => {
-              const relPath = src.replace(/^\/+/, '');
+              const relPath = src.replace(/^\.?\//, '');
               const jsPath = path.join(distDir, relPath);
               if (!fs.existsSync(jsPath)) return fullTag;
               const jsContent = fs
                 .readFileSync(jsPath, 'utf-8')
                 .replace(/<\/script/gi, '<\\/script');
               fs.unlinkSync(jsPath);
-              return `<script type="module">${jsContent}</script>`;
+              inlinedScripts.push(`<script type="module">${jsContent}</script>`);
+              return '';
             }
           );
+
+          if (inlinedScripts.length > 0) {
+            html = html.replace(/<\/body>/i, () => `${inlinedScripts.join('\n')}\n  </body>`);
+          }
 
           fs.writeFileSync(indexHtmlPath, html, 'utf-8');
         },
