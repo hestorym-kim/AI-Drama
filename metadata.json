@@ -1,0 +1,8 @@
+{
+  "name": "올인원 AI 드라마 제작 실전 매뉴얼",
+  "description": "초보자를 위한 AI 드라마 제작 파이프라인, 5단계 검토 게이트, 실전 프롬프트 공식 및 인터랙티브 체크리스트 가이드",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
