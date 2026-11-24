@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import type { Request, Response } from "express";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
@@ -164,6 +165,33 @@ async function startServer() {
         return;
       }
       res.status(500).json({ error: message });
+    }
+  });
+
+  app.get("/api/single-html", async (_req: Request, res: Response) => {
+    try {
+      const distIndexPath = path.resolve(__dirname, "dist", "index.html");
+      if (!fs.existsSync(distIndexPath)) {
+        const { build } = await import("vite");
+        await build();
+      }
+      if (!fs.existsSync(distIndexPath)) {
+        res.status(404).json({ error: "단일 HTML 빌드 파일을 생성하지 못했습니다." });
+        return;
+      }
+      const html = fs.readFileSync(distIndexPath, "utf-8");
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="index.html"'
+      );
+      res.send(html);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "단일 HTML 파일을 불러오는 중 오류가 발생했습니다.";
+      res.status(500).json({ error: msg });
     }
   });
 

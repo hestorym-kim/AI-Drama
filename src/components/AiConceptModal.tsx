@@ -83,6 +83,13 @@ export const AiConceptModal: React.FC<AiConceptModalProps> = ({
         }),
       });
 
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          '현재 정적 HTML(Google Sites 임베드 등) 환경에서는 AI 서버 엔드포인트(/api/generate-concept)를 호출할 수 없습니다. 풀스택 앱 환경에서 실행해 주세요.'
+        );
+      }
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error(

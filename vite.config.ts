@@ -19,18 +19,66 @@ export default defineConfig(() => {
           if (error) {
             return;
           }
-          const distDir = path.resolve(__dirname, 'dist');
-          const srcAssets = path.resolve(__dirname, 'src/assets');
+          const distDir = path.resolve(import.meta.dirname, 'dist');
+          const srcAssets = path.resolve(import.meta.dirname, 'src/assets');
           const distAssets = path.resolve(distDir, 'src/assets');
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
           }
         },
       },
+      // Bundles compiled CSS and JS directly into dist/index.html so it can be
+      // embedded as a single self-contained HTML file (e.g., Google Sites).
+      {
+        name: 'inline-singlefile-html',
+        apply: 'build',
+        closeBundle(error?: Error): void {
+          if (error) {
+            return;
+          }
+          const distDir = path.resolve(import.meta.dirname, 'dist');
+          const indexHtmlPath = path.join(distDir, 'index.html');
+          if (!fs.existsSync(indexHtmlPath)) {
+            return;
+          }
+
+          let html = fs.readFileSync(indexHtmlPath, 'utf-8');
+
+          // Inline all compiled stylesheets
+          html = html.replace(
+            /<link\b[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+            (fullTag, href: string) => {
+              const relPath = href.replace(/^\/+/, '');
+              const cssPath = path.join(distDir, relPath);
+              if (!fs.existsSync(cssPath)) return fullTag;
+              const cssContent = fs.readFileSync(cssPath, 'utf-8');
+              fs.unlinkSync(cssPath);
+              return `<style>${cssContent}</style>`;
+            }
+          );
+
+          // Inline all compiled module scripts
+          html = html.replace(
+            /<script\b[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*><\/script>/gi,
+            (fullTag, src: string) => {
+              const relPath = src.replace(/^\/+/, '');
+              const jsPath = path.join(distDir, relPath);
+              if (!fs.existsSync(jsPath)) return fullTag;
+              const jsContent = fs
+                .readFileSync(jsPath, 'utf-8')
+                .replace(/<\/script/gi, '<\\/script');
+              fs.unlinkSync(jsPath);
+              return `<script type="module">${jsContent}</script>`;
+            }
+          );
+
+          fs.writeFileSync(indexHtmlPath, html, 'utf-8');
+        },
+      },
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     server: {

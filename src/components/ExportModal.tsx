@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   Check,
+  Code2,
   Copy,
   Download,
   FileText,
+  Loader2,
   Printer,
   X,
 } from 'lucide-react';
@@ -32,6 +34,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [downloadedMsg, setDownloadedMsg] = useState<string | null>(null);
+  const [htmlLoading, setHtmlLoading] = useState(false);
+  const [htmlCopied, setHtmlCopied] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -87,6 +91,59 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     window.setTimeout(() => {
       window.print();
     }, 150);
+  };
+
+  const fetchSingleHtml = async (): Promise<string> => {
+    const res = await fetch('/api/single-html');
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok || !contentType.includes('text/html')) {
+      throw new Error('단일 HTML 파일을 가져올 수 없습니다.');
+    }
+    return await res.text();
+  };
+
+  const handleDownloadSingleHtml = async () => {
+    setHtmlLoading(true);
+    try {
+      const html = await fetchSingleHtml();
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'index.html';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setDownloadedMsg('Google Sites 임베드용 단일 index.html 파일이 다운로드되었습니다.');
+      window.setTimeout(() => setDownloadedMsg(null), 3000);
+    } catch (err: unknown) {
+      setDownloadedMsg(
+        err instanceof Error ? err.message : '단일 HTML 다운로드에 실패했습니다.'
+      );
+    } finally {
+      setHtmlLoading(false);
+    }
+  };
+
+  const handleCopySingleHtml = async () => {
+    setHtmlLoading(true);
+    try {
+      const html = await fetchSingleHtml();
+      await navigator.clipboard.writeText(html);
+      setHtmlCopied(true);
+      setDownloadedMsg('단일 index.html 전체 코드가 클립보드에 복사되었습니다.');
+      window.setTimeout(() => {
+        setHtmlCopied(false);
+        setDownloadedMsg(null);
+      }, 2500);
+    } catch (err: unknown) {
+      setDownloadedMsg(
+        err instanceof Error ? err.message : '단일 HTML 복사에 실패했습니다.'
+      );
+    } finally {
+      setHtmlLoading(false);
+    }
   };
 
   return (
@@ -250,6 +307,45 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 내보낼 항목을 1개 이상 선택해 주세요.
               </div>
             )}
+          </div>
+
+          {/* Google Sites Single-File HTML Export */}
+          <div className="rounded-xl border border-amber-500/30 bg-amber-50/40 dark:bg-amber-500/[0.06] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                <Code2 className="w-4 h-4 shrink-0" />
+                <span>Google Sites 임베드용 단일 HTML (index.html)</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                모든 CSS·JS가 단일 파일로 통합되어 있어 Google Sites [삽입 → 코드 삽입]에 바로 붙여넣을 수 있습니다.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                disabled={htmlLoading}
+                onClick={handleCopySingleHtml}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-white dark:bg-[#151A24] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-slate-300 disabled:opacity-50 transition-colors whitespace-nowrap cursor-pointer"
+              >
+                {htmlLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : htmlCopied ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+                <span>{htmlCopied ? '복사됨' : 'HTML 복사'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={htmlLoading}
+                onClick={handleDownloadSingleHtml}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 disabled:opacity-50 transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>index.html 저장</span>
+              </button>
+            </div>
           </div>
 
           {downloadedMsg && (

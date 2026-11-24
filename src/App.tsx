@@ -22,8 +22,12 @@ export default function App() {
   // Default to Dark Mode as requested
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window === 'undefined') return true;
-    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return saved ? saved === 'dark' : true;
+    try {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+      return saved ? saved === 'dark' : true;
+    } catch {
+      return true;
+    }
   });
 
   const [completedIds, setCompletedIds] = useState<string[]>(() => {
